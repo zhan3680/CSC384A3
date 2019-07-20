@@ -1,6 +1,5 @@
 #Look for #IMPLEMENT tags in this file. These tags indicate what has
-#to be implemented to complete problem solution.  
-
+#to be implemented to complete problem solution.
 '''This file will contain different constraint propagators to be used within 
    bt_search.
 
@@ -76,14 +75,128 @@ def prop_BT(csp, newVar=None):
                 return False, []
     return True, []
 
+#prune all values in @last_var that violates @constraint, return True iff DWO happens
+def FC_check(constraint, last_var):
+    DWO = False
+    last_var_after_prune = last_var
+    pruned_values = []
+
+    scope = constraint.get_scope()
+    last_var_index = scope.index(last_var)
+    assignment = []
+    for i in range(len(scope)):
+        if i == last_var_index:
+            assignment.append(float('inf'))
+        else:
+            assignment.append(scope[i].get_assigned_value())
+    for last_var_value in last_var.cur_domain():
+        assignment[last_var_index] = last_var_value
+        if not constraint.check(assignment):
+            last_var_after_prune.prune_value(last_var_value)
+            pruned_values.append((last_var_after_prune, last_var_value))
+
+    if last_var_after_prune.cur_domain_size() == 0:
+        DWO = True
+    return (DWO, last_var_after_prune, pruned_values)
+
 def prop_FC(csp, newVar=None):
     '''Do forward checking. That is check constraints with 
        only one uninstantiated variable. Remember to keep 
        track of all pruned variable,value pairs and return '''
-#IMPLEMENT
+    DWO = False
+    pruned_values = []
+
+    if not newVar: #need to check all constraints that have one unassigned variable
+        for con in csp.get_all_cons():
+            if len(con.get_scope()) == 1:
+                DWO, con.get_scope()[0], pruned_values_for_cur_con = FC_check(con, con.get_scope()[0])
+                pruned_values.extend(pruned_values_for_cur_con)
+                if DWO:
+                    return (False, pruned_values)
+    else: #only check those constraints with newVar in scope and one unassigned variable
+        for con in csp.get_cons_with_var(newVar):
+            if con.get_n_unasgn() == 1:
+                DWO, con.get_unasgn_vars()[0], pruned_values_for_cur_con = FC_check(con, con.get_unasgn_vars()[0])
+                pruned_values.extend(pruned_values_for_cur_con)
+                if DWO:
+                    return (False, pruned_values)
+
+    return (True, pruned_values)
+
+
+class UniqueQueue():
+    def __init__(self):
+        self.all_items = set()
+
+    def put(self, item):
+        self.all_items.add(item)
+
+    def get(self):
+        return self.all_items.pop()
+
+    def empty(self):
+        return len(self.all_items) == 0
+
+def GAC_enforce(csp, input_GACQueue):
+    #returns DWO and pruned values
+    GACQueue = input_GACQueue
+    pruned = []
+    while not GACQueue.empty():
+        constraint = GACQueue.get()
+        for var in constraint.get_scope(): #slides version
+        #for var in constraint.get_unasgn_vars(): #also works
+            for value in var.cur_domain():
+                if not constraint.has_support(var, value):
+                    var.prune_value(value)
+                    pruned.append((var, value))
+                    if var.cur_domain_size() == 0:
+                        # DWO = True
+                        print("{} experiences DWO!".format(var.name))
+                        return True, pruned
+                    else:
+                        for con in csp.get_cons_with_var(var):
+                            if con != constraint:
+                                GACQueue.put(con)
+
+    return False, pruned
 
 def prop_GAC(csp, newVar=None):
-    '''Do GAC propagation. If newVar is None we do initial GAC enforce 
+    '''Do GAC propagation. If newVar is None we do initial GAC enforce
        processing all constraints. Otherwise we do GAC enforce with
        constraints containing newVar on GAC Queue'''
-#IMPLEMENT
+    GACQueue = UniqueQueue()
+    if not newVar:
+        for constraint in csp.get_all_cons():
+            GACQueue.put(constraint)
+    else:
+        for related_constraint in csp.get_cons_with_var(newVar):
+            GACQueue.put(related_constraint)
+
+    DWO, pruned = GAC_enforce(csp, GACQueue)
+    if DWO:
+        return (False, pruned)
+    else:
+        return (True, pruned)
+
+if __name__ == '__main__':
+    #test UniqueQueue
+    q = UniqueQueue()
+    for i in range(10):
+        q.put(2)
+    for j in range(8):
+        q.put(3)
+    for k in range(18):
+        q.put(2)
+    sum = 0
+    while not q.empty():
+        print(q.get())
+        sum += 1
+    print("that is everything in the UniqueQueue!")
+
+    if sum == 2:
+        print("UniqueQueue worked!")
+    else:
+        print("test failed")
+        print(sum)
+
+    #last update: 07-17 2:25 am
