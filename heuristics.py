@@ -28,6 +28,11 @@ val_ordering == a function with the following template
 '''
 
 def ord_mrv(csp):
+    """
+
+    :param csp: a csp that has unassigned variables
+    :return: an unassigned variable of "csp" with least number of remaining values in its cur_dom
+    """
     mrv = float('inf')
     next_var = None
     for unassigned_var in csp.get_all_unasgn_vars():
@@ -38,6 +43,12 @@ def ord_mrv(csp):
 
 
 def merge(list1, list2):
+    """
+
+    :param list1: a sorted list
+    :param list2: a sorted list
+    :return: list1 and list2 combined in non-descending order
+    """
     if len(list1) == 0:
         return list2
     if len(list2) == 0:
@@ -48,26 +59,28 @@ def merge(list1, list2):
         return [list2[0]] + merge(list1, list2[1:])
 
 def merge_sort(list):
+    """
+
+    :param list: an unsorted list
+    :return: list sorted in non-decreasing order
+    """
     if len(list) <= 1:
         return list
     else:
         mid = len(list)//2
         return merge(merge_sort(list[:mid]), merge_sort(list[mid:]))
 
-def has_specific_support(input_var_value, input_var_index, tuples):
-    #return True iff there exists at least 1 tuple t in tuples such that t[input_var_index] == input_var_value
-    for t in tuples:
-        if t[input_var_index] == input_var_value:
-            return True
-    return False
-
 def val_lcv(csp,input_var):
+    """
+
+    :param csp: a csp containing unassigned variables
+    :param input_var: an unasigned variable in "csp"
+    :return: a list of value in cur_dom of "input_var", sorted by the value that will be ruled out the in the remaining variables
+    """
     involved_constraints = csp.get_cons_with_var(input_var)
     value_numPrune_tuples = []
-    # initial_curDom_size = [variable.cur_domain_size() for variable in csp.get_all_unasgn_vars()]
     for input_var_value in input_var.cur_domain():
         sum_pruned = 0
-        # input_var.assign(input_var_value)
         pruned = dict()
         for constraint in involved_constraints:
             involved_variables = constraint.get_scope()
@@ -82,25 +95,18 @@ def val_lcv(csp,input_var):
                         input_var.assign(input_var_value)
                         has_solution_after = constraint.has_support(cur_var, cur_var_value)
                         input_var.unassign()
-                        # if constraint.has_support(cur_var, cur_var_value):
-                        #     if not has_specific_support(input_var_value, input_var_index, constraint.sup_tuples[(cur_var, cur_var_value)]):
-                        #         cur_var.prune_value(cur_var_value)
-                        #         pruned[cur_var].append(cur_var_value)
                         if has_solution_before and not has_solution_after:
                             cur_var.prune_value(cur_var_value)
                             pruned[cur_var].append(cur_var_value)
                             sum_pruned += 1
-        #calculate total pruned value by assigning input_var_value to input_var
-        # input_var.unassign()
-        # curDom_size_after_prune = [variable.cur_domain_size() for variable in csp.get_all_unasgn_vars()]
-        # if len(initial_curDom_size) != len(curDom_size_after_prune):
-            # print("what is wrong?!!!!!!!!!!!!!!!!!!!!!!!!")
-        # sum_pruned = sum([initial_curDom_size[i] - curDom_size_after_prune[i] for i in range(initial_curDom_size)])
+
         value_numPrune_tuples.append((input_var_value, sum_pruned))
         for pruned_var in pruned.keys():
             for pruned_value in pruned[pruned_var]:
                 pruned_var.unprune_value(pruned_value)
-    #sort the list of (inpt_var_value, num_total_pruned_value) tuples and return list of input_var_value, in ascending order
+
+    #sort the list of (inpt_var_value, num_total_pruned_value) tuples and return list of input_var_value,
+    #in ascending order of num_total_pruned_value
     sorted = merge_sort(value_numPrune_tuples)
     return [item[0] for item in sorted]
 
@@ -111,4 +117,6 @@ if __name__ == '__main__':
     sorted = merge_sort(test_list)
     res_lcv = [item[0] for item in sorted]
     print(res_lcv)
+
+    # last_update: 2019-07-20 19:26
 

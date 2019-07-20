@@ -77,6 +77,12 @@ def prop_BT(csp, newVar=None):
 
 #prune all values in @last_var that violates @constraint, return True iff DWO happens
 def FC_check(constraint, last_var):
+    """
+
+    :param constraint: constraint that has only one variable unassigned
+    :param last_var: the last unassigned variable of "constraint"
+    :return: True iff DWO happens; last_var after pruning; a list of (var, pruned_value) pairs
+    """
     DWO = False
     last_var_after_prune = last_var
     pruned_values = []
@@ -123,7 +129,9 @@ def prop_FC(csp, newVar=None):
 
     return (True, pruned_values)
 
-
+'''
+This class obeys FIFO, but does not allow duplicate objects
+'''
 class UniqueQueue():
     def __init__(self):
         self.all_items = set()
@@ -138,20 +146,23 @@ class UniqueQueue():
         return len(self.all_items) == 0
 
 def GAC_enforce(csp, input_GACQueue):
-    #returns DWO and pruned values
+    """
+
+    :param csp: the csp on which GAC algorithm is performed
+    :param input_GACQueue: the UniqueQueue that containing all initial constraints for GAC
+    :return: True iff DWO happens; a list of (var, pruned_value) pairs
+    """
     GACQueue = input_GACQueue
     pruned = []
     while not GACQueue.empty():
         constraint = GACQueue.get()
-        for var in constraint.get_scope(): #slides version
-        #for var in constraint.get_unasgn_vars(): #also works
+        for var in constraint.get_scope():
             for value in var.cur_domain():
                 if not constraint.has_support(var, value):
                     var.prune_value(value)
                     pruned.append((var, value))
                     if var.cur_domain_size() == 0:
                         # DWO = True
-                        print("{} experiences DWO!".format(var.name))
                         return True, pruned
                     else:
                         for con in csp.get_cons_with_var(var):
@@ -199,4 +210,4 @@ if __name__ == '__main__':
         print("test failed")
         print(sum)
 
-    #last update: 07-17 2:25 am
+    # last_update: 2019-07-20 19:26

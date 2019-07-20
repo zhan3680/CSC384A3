@@ -33,13 +33,18 @@ from cspbase import *
 import itertools
 
 def binary_ne_grid(kenken_grid):
+    """
+
+    :param kenken_grid: a list of list, first element being the size of the kenken grid board, rest are cage constraitns
+    :return: the kenken csp and the kenken_grid board containing all variables
+    """
+
     # size and variable domain of the board
     size = kenken_grid[0][0]
     var_dom = []
     for i in range(size):
         var_dom.append(i+1)
     all_Vars = []
-    #all_Cons = []
 
     #initialize the board
     board = []
@@ -66,7 +71,6 @@ def binary_ne_grid(kenken_grid):
         for scope in row_scope_pool:
             row_constraint = Constraint("Row_Diff-({}, {})".format(scope[0].name, scope[1].name), scope)
             row_constraint.add_satisfying_tuples(satisfying_tuples)
-            #all_Cons.append(row_constraint)
             kenken_csp.add_constraint(row_constraint)
 
     #column constraints
@@ -81,23 +85,24 @@ def binary_ne_grid(kenken_grid):
         for scope in col_scope_pool:
             col_constraint = Constraint("Col_Diff-({}, {})".format(scope[0].name, scope[1].name), scope)
             col_constraint.add_satisfying_tuples(satisfying_tuples)
-            #all_Cons.append(col_constraint)
             kenken_csp.add_constraint(col_constraint)
-
-    #for constraint in all_Cons:
-        #kenken_csp.add_constraint(constraint)
 
     return kenken_csp, board
 
 
 def nary_ad_grid(kenken_grid):
+    """
+
+    :param kenken_grid: a list of list, first element being the size of the kenken grid board, rest are cage constraitns
+    :return: the kenken csp and the kenken_grid board containing all variables
+    """
+
     # size and variable domain of the board
     size = kenken_grid[0][0]
     var_dom = []
     for i in range(size):
         var_dom.append(i + 1)
     all_Vars = []
-    #all_Cons = []
 
     # initialize the board
     board = []
@@ -122,7 +127,6 @@ def nary_ad_grid(kenken_grid):
     for i in range(size):
         row_constraint = Constraint("Row_Diff_{}".format(i+1), board[i])
         row_constraint.add_satisfying_tuples(satisfying_tuples)
-        #all_Cons.append(row_constraint)
         kenken_csp.add_constraint(row_constraint)
 
     # column constraints
@@ -135,16 +139,20 @@ def nary_ad_grid(kenken_grid):
     for i in range(size):
         col_constraint = Constraint("Col_Diff_{}".format(i+1), board_Transpose[i])
         col_constraint.add_satisfying_tuples(satisfying_tuples)
-        #all_Cons.append(col_constraint)
         kenken_csp.add_constraint((col_constraint))
-
-    # for constraint in all_Cons:
-        # kenken_csp.add_constraint(constraint)
 
     return kenken_csp, board
 
 
 def exist_satisfying_permutation(potential_sol, operation, expected_output):
+    """
+
+    :param potential_sol: an assignment for all variable in a particular cage constraint
+    :param operation: 1: minus; 2: divide
+    :param expected_output: expected output of the cage constraint
+    :return: True if exist a permutation of variable assignment in "potential_sol" that can generate "expected_output"
+             when combined using "operation"
+    """
     permutation = list(potential_sol)
     all_possible_permutations = []
     for i in range(len(potential_sol)):
@@ -169,8 +177,14 @@ def exist_satisfying_permutation(potential_sol, operation, expected_output):
             return True
     return False
 
-# returns a cage constraint, given an element of the "cages" list
 def cage_constraint(board, cage, cage_index):
+    """
+
+    :param board: board[0][0] is the variable representing value of upper most cell
+    :param cage: a list representing one cage constraint
+    :param cage_index: index of the cage constraint this function returns
+    :return: a cage constraint based on parameter "cage"
+    """
     caged_variables = cage[0]
     operation = cage[1]
     expected_output = cage[2]
@@ -195,10 +209,6 @@ def cage_constraint(board, cage, cage_index):
             if exist_satisfying_permutation(potential_sol, operation, expected_output):
                 sat_tuples.append(potential_sol)
                 continue
-        # elif operation == 2: #divide
-        #     if exist_satisfying_permutation(potential_sol, operation, expected_output):
-        #         sat_tuples.append(potential_sol)
-        #         continue
         elif operation == 3: #multiply
             while counter < len(potential_sol):
                 real_output *= potential_sol[counter]
@@ -216,6 +226,13 @@ def cage_constraint(board, cage, cage_index):
     return constraint
 
 def add_cageConstraints_to_model(csp_without_cages, board, all_cages):
+    """
+
+    :param csp_without_cages: kenken csp without cage constraints
+    :param board: board[0][0] is the variable representing value of upper left cell
+    :param all_cages: a list of lists, each element is a cage constraint
+    :return: a kenken csp with all the cage constraint added
+    """
     resulting_csp_after_adding_cage_constraints = csp_without_cages
     for i in range(len(all_cages)):
         cage = all_cages[i]
@@ -224,8 +241,14 @@ def add_cageConstraints_to_model(csp_without_cages, board, all_cages):
     return resulting_csp_after_adding_cage_constraints
 
 def kenken_csp_model(kenken_grid):
+    """
+
+    :param kenken_grid: a list of list, first element being the size of the kenken grid board, rest are cage constraitns
+    :return: the kenken csp and the kenken_grid board containing all variables
+    """
+
     #first build the n-nary grid csp model without cage constraints
-    csp_without_cages, board = nary_ad_grid(kenken_grid)
+    csp_without_cages, board = binary_ne_grid(kenken_grid)
 
     #extract the cage constraints info and store into a list, in the following form:
     #cages = [cage1: [[(var1_x, var1_y),(var2_x, var2_y),...], operation, result], cage2, cage3, ...]
@@ -239,7 +262,7 @@ def kenken_csp_model(kenken_grid):
             caged_variables.append(caged_var_coord)
         cages.append([caged_variables, cur_cage[-1], cur_cage[-2]])
 
-    #add all the cage constraints to csp_without_cages
+    #all all cage constraints
     return add_cageConstraints_to_model(csp_without_cages, board, cages), board
 
 
@@ -310,8 +333,13 @@ if __name__ == '__main__':
     #     all_possible_permutations.append(tuple(permutation))
     # print(all_possible_permutations)
 
-    test_csp, _ = binary_ne_grid([[2]])
-    for var in test_csp.get_all_vars():
-        print("this var's name is: {}".format(var.name))
+    # test_csp, _ = binary_ne_grid([[2]])
+    # for var in test_csp.get_all_vars():
+    #     print("this var's name is: {}".format(var.name))
 
+    var_dom = [1,2,3,4,5,6]
+    for item in itertools.product(var_dom, repeat=len(var_dom)):
+        print(item)
     pass
+
+    #last_update: 2019-07-20 19:26
